@@ -99,3 +99,10 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# test data
+example_output.txt
+output.txt
+query.txt
+source.csv
+test.txt
