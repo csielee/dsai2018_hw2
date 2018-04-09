@@ -1,8 +1,10 @@
-import jieba
+#import jieba
 import argparse
 import pandas as pd
 import json
 import codecs
+import re
+import time
 
 def parseQuery(query):
     words = query.split(" ")
@@ -15,6 +17,21 @@ def parseQuery(query):
         queryWord.append(word)
     
     return [queryWord, op]
+
+def English(str):
+    regex = r"[a-zA-Z]+\'*[a-z]*"
+    matches = re.findall(regex, str, re.UNICODE)
+    if matches:
+        return True
+    else:
+        return False
+
+def spliteKeyWord(str):
+    regex = r"[\u4e00-\ufaff]|[0-9]+|[a-zA-Z]+\'*[a-z]*|[^0-9]"
+    matches = re.findall(regex, str, re.UNICODE)
+    return matches
+
+
 
 if __name__ == '__main__':
     # You should not modify this part.
@@ -34,34 +51,50 @@ if __name__ == '__main__':
     # Please implement your algorithm below
     
     # init
-    jieba.set_dictionary('./dict.txt.big.txt')
-    jieba.initialize()
+    #jieba.set_dictionary('./dict.txt.big.txt')
+    #jieba.initialize()
 
     # TODO load source data, build search engine
     source = pd.read_csv(args.source, header=None)
-    querylist = pd.read_csv(args.query, header=None)
+    source = source.iloc[:,1].values
 
-    engine = dict()
-    for index,row in source.iterrows():
+    start_time = time.time()
+    engine = [dict(), dict(), dict()]
+    for index,title in enumerate(source):
         #print(row[0])
-        title = row[1]
+        #title = row[1]
         #terms = jieba.cut(title)
-        terms = jieba.cut_for_search(title)
-        #print(", ".join(terms))
-        for term in terms:
-            #print(term)
-            if engine.get(term) == None:
-                engine[term] = set()
-            engine[term].add(row[0])
+        #terms = jieba.cut_for_search(title)
         
+
+        #terms = list()
+        words = spliteKeyWord(title)
+
+        for j in range(1,4):
+            for i in range(0,len(words) - j + 1):
+                term = ''.join(words[i:i+j])
+                if term not in engine[j-1]:
+                    engine[j-1][term] = set()
+                engine[j-1][term].add(index+1)
+
     
-    print('build engine finish')
+    print("build engine finish for %s sec" % (time.time() - start_time))
+    
+    #with open('dictlist.txt','w') as dictfile:
+    #    for i in range(0,3):
+    #        for key in engine[i]:
+    #            dictfile.write(key)
+    #            dictfile.write('\n')
+    
+    
     # TODO compute query result
     
 
   
     # TODO output result
+    start_time = time.time()
     ouputfile = open(args.output, "w")
+    querylist = pd.read_csv(args.query, header=None)
 
     for index,row in querylist.iterrows():
         querys, op = parseQuery(row[0])
@@ -69,15 +102,20 @@ if __name__ == '__main__':
         #print('op : ', op)
         answer = None
         for i in querys:
+            if English(i):
+                engine_index = 0
+            else:
+                engine_index = len(i) - 1
+
             if answer == None:
-                answer = engine.get(i, set())
+                answer = engine[engine_index].get(i, set())
             else:
                 if op == "and":
-                    answer = answer & engine.get(i, set())
+                    answer = answer & engine[engine_index].get(i, set())
                 if op == "or":
-                    answer = answer | engine.get(i, set())
+                    answer = answer | engine[engine_index].get(i, set())
                 if op == "not":
-                    answer = answer - engine.get(i, set())
+                    answer = answer - engine[engine_index].get(i, set())
         
         #print(answer)
         answer = list(answer)
@@ -94,4 +132,4 @@ if __name__ == '__main__':
     
     ouputfile.close()
 
-    print('query finish')
+    print("query finish for %s sec" % (time.time() - start_time))
